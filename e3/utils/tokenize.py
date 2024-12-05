@@ -4,7 +4,6 @@ from utils.geometry import normalize_vectors, pairwise_distances, angle_between_
 
 def tokenize_trajectory(data):
     # Extract positions and orientations
-    # print(data)
     
     data = data.astype(float)
     positions = data[:, :, 0:3]  # x, y, z
@@ -44,34 +43,37 @@ def tokenize_trajectory(data):
         neighbor_3.unsqueeze(2), neighbor_5.unsqueeze(2)
     ], dim=2)
     
-    print(nodes.shape)
 
     # edge indexes for a fully connected graph
     num_nodes = nodes.shape[1]
     # gen. all possible indices for unique node pairs that define edges
+    #Somthing is wrong here
     edge_index = torch.combinations(torch.arange(num_nodes), r=2, with_replacement=False).T
-
-    print(edge_index.shape) 
 
     # calc pairwise distances
     pairwise_dist_matrix = pairwise_distances(positions)
-    
-    print(pairwise_dist_matrix.shape)
-    
-    edge_attr_distances = pairwise_dist_matrix[edge_index[0], edge_index[1]].unsqueeze(1)
+        
+    edge_attr_distances = np.array([pairwise_dist_matrix[i, edge_index[0], edge_index[1]] for i in range(nodes.shape[0])]).reshape(nodes.shape[0], edge_index.shape[1], 1)
+
 
     # add angles as edge features
-    edge_attr_angles = []
-    for i, j in zip(edge_index[0], edge_index[1]):
-        v1 = nodes[i, 3:6]  # a1 of node i
-        v2 = nodes[j, 3:6]  # a1 of node j
-        angle = angle_between_vectors(v1, v2)
-        edge_attr_angles.append(angle)
+    all_edge_attr_angles = []
+    for conf in range(nodes.shape[0]):
+        edge_attr_angles = []
+        for i, j in zip(edge_index[0], edge_index[1]):
+            v1 = nodes[conf, i, 3:6]  # a1 of node i
+            v2 = nodes[conf, j, 3:6]  # a1 of node j
+            angle = angle_between_vectors(v1, v2)
+            edge_attr_angles.append(angle)
+        all_edge_attr_angles.append(edge_attr_angles)
+    edge_attr_angles = np.array(all_edge_attr_angles).reshape(nodes.shape[0], edge_index.shape[1], 1)
 
-    edge_attr_angles = torch.stack(edge_attr_angles).unsqueeze(1)
 
     # Combine distance and angle as edge attributes
-    edge_attr = torch.cat([edge_attr_distances, edge_attr_angles], dim=1)
+    edge_attr_angles = torch.tensor(edge_attr_angles, dtype=torch.float32)
+    edge_attr_distances = torch.tensor(edge_attr_distances, dtype=torch.float32)
+    
+    edge_attr = torch.cat([edge_attr_distances, edge_attr_angles], dim=2)
 
     # Return nodes, edge_index, and edge_attr
     return {

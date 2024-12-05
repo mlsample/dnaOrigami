@@ -1,0 +1,13 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Train Transformer",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "/scratch/matthew/project_files/dnaOrigami/e3/train_transformer.py",
+            "console": "integratedTerminal",
+            "cwd": "/scratch/matthew/project_files/dnaOrigami/e3"
+        }
+    ]
+}

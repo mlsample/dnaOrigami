@@ -10,8 +10,11 @@ class MultiHeadAttention(nn.Module):
         self.nhead = cfg['nhead']
         self.attention = nn.MultiheadAttention(cfg['d_model'], self.nhead, batch_first=True)
 
-    def forward(self, q, k, v, attn_mask=None):
-        return self.attention(q, k, v, key_padding_mask=attn_mask)[0]
+    def forward(self, q, k, v, attn_mask=None, is_causal=False):
+        if is_causal:
+            return self.attention(q, k, v, attn_mask=attn_mask, is_causal=is_causal)[0]
+        
+        return self.attention(q, k, v, key_padding_mask=attn_mask, is_causal=is_causal)[0]
 
 
 class PositionWiseFeedForward(nn.Module):
@@ -34,7 +37,7 @@ class EncoderLayer(nn.Module):
         self.dropout = nn.Dropout(cfg['dropout_rate'])
 
     def forward(self, x, attn_mask):
-        attn_output = self.multi_head_attention(x, x, x, attn_mask=attn_mask)
+        attn_output = self.multi_head_attention(x, x, x, attn_mask=attn_mask, is_causal=False)
         x = self.norm1(x + self.dropout(attn_output))
         ff_output = self.position_wise_feed_forward(x)
         x = self.norm2(x + self.dropout(ff_output))
@@ -50,7 +53,7 @@ class TransformerEncoder(nn.Module):
 
         self.embed = nn.Linear(cfg['n_features'], self.d_model)
         self.layers = nn.ModuleList([EncoderLayer(cfg) for _ in range(cfg['num_layers'])])
-        
+                
     def forward(self, x, attn_mask=None):
         self.batch_size, self.seq_len, self.n_features = x.shape
         
@@ -86,14 +89,14 @@ class DecoderLayer(nn.Module):
         self.norm2 = nn.LayerNorm(cfg['d_model'])
         self.norm3 = nn.LayerNorm(cfg['d_model'])
         self.dropout = nn.Dropout(cfg['dropout_rate'])
-
+        
     def forward(self, x, enc_output, src_mask, tgt_mask):
         # Masked multi-head attention
-        attn_output = self.multi_head_attention(x, x, x, attn_mask=tgt_mask)
+        attn_output = self.multi_head_attention(x, x, x, attn_mask=tgt_mask, is_causal=True)
         x = self.norm1(x + self.dropout(attn_output))
 
         # Encoder-Decoder attention
-        attn_output = self.enc_dec_attention(x, enc_output, enc_output, attn_mask=src_mask)
+        attn_output = self.enc_dec_attention(x, enc_output, enc_output, attn_mask=src_mask, is_causal=False)
         x = self.norm2(x + self.dropout(attn_output))
 
         # Feed forward
@@ -107,11 +110,12 @@ class TransformerDecoder(nn.Module):
         self.cfg = cfg
         self.d_model = cfg['d_model']
         
-        self.embed = nn.Embedding(cfg['num_tokens'], self.d_model, padding_idx=0)
+        self.embed = nn.Linear(cfg['n_features'], self.d_model)
         self.layers = nn.ModuleList([DecoderLayer(cfg) for _ in range(cfg['num_layers'])])
-
+        self.linear = nn.Linear(self.d_model, cfg['n_features'])
+        
     def forward(self, x, enc_output, src_mask, tgt_mask):
-        self.batch_size, self.seq_len = x.shape
+        self.batch_size, self.seq_len, self.n_features = x.shape
         
         x = self.embed(x)
         x = x + self.get_position_encoding(self.seq_len, self.d_model).to(self.cfg['device'])
@@ -119,6 +123,8 @@ class TransformerDecoder(nn.Module):
         for layer in self.layers:
             x = layer(x, enc_output, src_mask, tgt_mask)
 
+        x = self.linear(x)
+        
         return x
     
     def get_position_encoding(self, seq_len, d_model):
@@ -133,3 +139,15 @@ class TransformerDecoder(nn.Module):
                 else:
                     pos_enc[pos, i] = np.cos(theta)
         return torch.FloatTensor(pos_enc)
+    
+    
+class Transformer(nn.Module):
+    def __init__(self, cfg):
+        super(Transformer, self).__init__()
+        self.encoder = TransformerEncoder(cfg)
+        self.decoder = TransformerDecoder(cfg)
+        
+    def forward(self, src, tgt, src_mask, tgt_mask):
+        enc_output = self.encoder(src, src_mask)
+        dec_output = self.decoder(tgt, enc_output, src_mask, tgt_mask)
+        return dec_output
