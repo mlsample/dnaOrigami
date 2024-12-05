@@ -1,2 +1,6 @@
 data/
 .ipynb_checkpoints/
+mdgen
+mdgen
+models
+*.pyc
