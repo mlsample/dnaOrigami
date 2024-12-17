@@ -7,3 +7,5 @@ dna_model.pth
 *.pyc
 *.pkl
 1_hairpin
+DeepLearningExamples
+se3-transformer-public
