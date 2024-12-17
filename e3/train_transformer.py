@@ -4,26 +4,36 @@ import torch.optim as optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 from dataset.dataset import DNADataset
-from model.transformer import Transformer
+from model.transformer import Transformer, TransformerEncoder
 from utils.logger import get_logger
+import os
+from ipy_oxdna.generate_replicas import ReplicaGroup
+import pickle 
 
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     # Load dataset
-    trajectory_filepaths = ["dataset/data/trajectory.dat"]
-    topology_filepaths = ["dataset/data/output.top"]
-    dataset = DNADataset(trajectory_filepaths, topology_filepaths)
-    # dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
-
+    # dataset = DNADataset(trajectory_filepaths, topology_filepaths)
+    with open('dataset.pkl', 'rb') as f:
+        dataset = pickle.load(f)
+    
     # Initialize model, loss function, and optimizer
-    cfg = {'num_layers':2, 'n_features':13, 'd_model': 52, 'nhead': 13, 'num_encoder_layers': 6, 'd_ff': 64, 'dropout_rate': 0.1, 'device': device}
-    model = Transformer(cfg).to(device)
+    cfg = {'num_layers':4,
+           'n_features':22,
+           'd_model': 64,
+           'nhead': 8,
+           'd_ff': 64,
+           'dropout_rate': 0.1,
+           'device': device}
+    
+    model = TransformerEncoder(cfg).to(device)
     loss_function = nn.MSELoss()  # temp loss function
-    optimizer = optim.Adam(model.parameters(), lr=5e-3)
-    scheduler = ReduceLROnPlateau(optimizer, 'min', patience=125, factor=0.5, verbose=True)
+    optimizer = optim.Adam(model.parameters(), lr=1e-3)
+    scheduler = ReduceLROnPlateau(optimizer, 'min', patience=125, factor=0.5)
+    
     # Training loop
-    epochs = 20000
+    epochs = 2000
     logger = get_logger(__name__)
 
     for epoch in range(epochs):
@@ -40,7 +50,8 @@ def main():
             tgt_mask = torch.nn.Transformer.generate_square_subsequent_mask(n_particles).to(device)
 
             # Forward pass
-            outputs = model(src, tgt, src_mask, tgt_mask)
+            # outputs = model(src, tgt, src_mask, tgt_mask)
+            outputs = model(src, src_mask)
             loss = loss_function(outputs, tgt)  
             
             # Backward pass
@@ -48,7 +59,7 @@ def main():
             optimizer.step()
             running_loss += loss.item()
             
-        avg_loss = running_loss
+        avg_loss = running_loss / len(dataset)
         scheduler.step(avg_loss)
         
         if (epoch + 1) % 250 == 0:

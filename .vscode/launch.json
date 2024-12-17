@@ -8,6 +8,28 @@
             "program": "/scratch/matthew/project_files/dnaOrigami/e3/train_transformer.py",
             "console": "integratedTerminal",
             "cwd": "/scratch/matthew/project_files/dnaOrigami/e3"
+        },
+        {
+            "name": "Run nbody_run.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "/scratch/matthew/project_files/dnaOrigami/se3-transformer-public/experiments/nbody/nbody_run.py",
+            "cwd": "/scratch/matthew/project_files/dnaOrigami/se3-transformer-public/experiments/nbody",
+            "args": [
+                "--ri_delta_t", "1",
+                "--num_degrees", "4",
+                "--batch_size", "28",
+                "--num_channels", "8",
+                "--div", "4",
+                "--ri_burn_in", "0",
+                "--siend", "att",
+                "--xij", "add",
+                "--head", "2",
+                "--data_str", "20_new",
+                "--num_workers", "2",
+                "--lr", "0.001",
+            ],
+            "console": "integratedTerminal"
         }
     ]
 }

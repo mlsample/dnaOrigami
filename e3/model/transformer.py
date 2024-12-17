@@ -53,7 +53,8 @@ class TransformerEncoder(nn.Module):
 
         self.embed = nn.Linear(cfg['n_features'], self.d_model)
         self.layers = nn.ModuleList([EncoderLayer(cfg) for _ in range(cfg['num_layers'])])
-                
+        self.linear = nn.Linear(self.d_model, cfg['n_features'])
+        
     def forward(self, x, attn_mask=None):
         self.batch_size, self.seq_len, self.n_features = x.shape
         
@@ -62,7 +63,9 @@ class TransformerEncoder(nn.Module):
         
         for layer in self.layers:
             x = layer(x, attn_mask)
-        
+            
+        x = self.linear(x)
+
         return x
     
     def get_position_encoding(self, seq_len, d_model):
