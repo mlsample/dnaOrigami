@@ -2,5 +2,8 @@
 mdgen
 mdgen
 models
+2_hairpin
+dna_model.pth
 *.pyc
+*.pkl
 1_hairpin
