@@ -8,3 +8,7 @@ dna_model.pth
 *.pkl
 1_hairpin
 DeepLearningExamples
+nanobase_data
+*slurm*
+Final
+*.gz

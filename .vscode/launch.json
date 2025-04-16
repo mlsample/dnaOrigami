@@ -29,7 +29,8 @@
                 "--num_workers", "2",
                 "--lr", "0.001",
             ],
-            "console": "integratedTerminal"
+            "console": "integratedTerminal",
+            "justMyCode": false
         }
     ]
 }
